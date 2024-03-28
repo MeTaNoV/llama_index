@@ -11,6 +11,9 @@ from llama_index.core.storage.docstore.utils import doc_to_json, json_to_doc
 from llama_index.core.storage.kvstore.types import DEFAULT_BATCH_SIZE, BaseKVStore
 
 DEFAULT_NAMESPACE = "docstore"
+DEFAULT_COLLECTION_DATA_SUFFIX = "/data"
+DEFAULT_REF_DOC_COLLECTION_SUFFIX = "/ref_doc_info"
+DEFAULT_METADATA_COLLECTION_SUFFIX = "/metadata"
 
 
 class KVDocumentStore(BaseDocumentStore):
@@ -46,13 +49,27 @@ class KVDocumentStore(BaseDocumentStore):
         kvstore: BaseKVStore,
         namespace: Optional[str] = None,
         batch_size: int = DEFAULT_BATCH_SIZE,
+        node_collection_suffix: Optional[str] = None,
+        ref_doc_collection_suffix: Optional[str] = None,
+        metadata_collection_suffix: Optional[str] = None,
     ) -> None:
         """Init a KVDocumentStore."""
         self._kvstore = kvstore
         self._namespace = namespace or DEFAULT_NAMESPACE
-        self._node_collection = f"{self._namespace}/data"
-        self._ref_doc_collection = f"{self._namespace}/ref_doc_info"
-        self._metadata_collection = f"{self._namespace}/metadata"
+        self._node_collection_suffix = (
+            node_collection_suffix or DEFAULT_COLLECTION_DATA_SUFFIX
+        )
+        self._ref_doc_collection_suffix = (
+            ref_doc_collection_suffix or DEFAULT_REF_DOC_COLLECTION_SUFFIX
+        )
+        self._metadata_collection_suffix = (
+            metadata_collection_suffix or DEFAULT_METADATA_COLLECTION_SUFFIX
+        )
+        self._node_collection = f"{self._namespace}{self._node_collection_suffix}"
+        self._ref_doc_collection = f"{self._namespace}{self._ref_doc_collection_suffix}"
+        self._metadata_collection = (
+            f"{self._namespace}{self._metadata_collection_suffix}"
+        )
         self._batch_size = batch_size
 
     @property
@@ -460,8 +477,8 @@ class KVDocumentStore(BaseDocumentStore):
 
         for doc_id in ref_doc_info.node_ids:
             self.delete_document(doc_id, raise_error=False, remove_ref_doc_node=False)
+            self._kvstore.delete(doc_id, collection=self._metadata_collection)
 
-        self._kvstore.delete(ref_doc_id, collection=self._metadata_collection)
         self._kvstore.delete(ref_doc_id, collection=self._ref_doc_collection)
 
     async def adelete_ref_doc(self, ref_doc_id: str, raise_error: bool = True) -> None:
@@ -477,8 +494,8 @@ class KVDocumentStore(BaseDocumentStore):
             await self.adelete_document(
                 doc_id, raise_error=False, remove_ref_doc_node=False
             )
+            await self._kvstore.adelete(doc_id, collection=self._metadata_collection)
 
-        await self._kvstore.adelete(ref_doc_id, collection=self._metadata_collection)
         await self._kvstore.adelete(ref_doc_id, collection=self._ref_doc_collection)
 
     def set_document_hash(self, doc_id: str, doc_hash: str) -> None:
